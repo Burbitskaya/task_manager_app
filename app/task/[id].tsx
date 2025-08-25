@@ -1,31 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Task, TaskStatus } from '../../types';
+import { useTheme } from '../../components/ThemeContext';
 
 const TaskDetailScreen = () => {
     const { id } = useLocalSearchParams();
     const navigation = useNavigation();
+    const { colors } = useTheme();
     const [task, setTask] = useState<Task | null>(null);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
-
-
+    // Load task when component mounts or id changes
     useEffect(() => {
         if (id) {
             loadTask();
         }
     }, [id]);
 
+    // Set navigation title to task title
     useEffect(() => {
-        // Устанавливаем заголовок экрана равным title задачи
         if (task) {
             navigation.setOptions({ title: task.title });
         }
     }, [task, navigation]);
 
+    // Load task from AsyncStorage
     const loadTask = async (): Promise<void> => {
         try {
             const storedTasks = await AsyncStorage.getItem('tasks');
@@ -35,30 +36,33 @@ const TaskDetailScreen = () => {
                 setTask(foundTask || null);
             }
         } catch (error) {
-            Alert.alert('Ошибка', 'Не удалось загрузить задачу');
+            Alert.alert('Error', 'Failed to load task');
         }
     };
 
+    // Get color for status badge
     const getStatusColor = (status: TaskStatus): string => {
         switch (status) {
-            case 'completed': return '#4cd964';
-            case 'in-progress': return '#007aff';
-            case 'pending': return '#ffcc00';
-            case 'cancelled': return '#ff3b30';
-            default: return '#8e8e93';
+            case 'completed': return colors.success;
+            case 'in-progress': return colors.info;
+            case 'pending': return colors.warning;
+            case 'cancelled': return colors.danger;
+            default: return colors.info;
         }
     };
 
+    // Get text for status badge
     const getStatusText = (status: TaskStatus): string => {
         switch (status) {
-            case 'completed': return 'Завершено';
-            case 'in-progress': return 'В процессе';
-            case 'pending': return 'Ожидание';
-            case 'cancelled': return 'Отменено';
+            case 'completed': return 'Completed';
+            case 'in-progress': return 'In Progress';
+            case 'pending': return 'Pending';
+            case 'cancelled': return 'Cancelled';
             default: return status;
         }
     };
 
+    // Update task status in AsyncStorage
     const updateStatus = async (newStatus: TaskStatus): Promise<void> => {
         if (!task) return;
 
@@ -71,14 +75,16 @@ const TaskDetailScreen = () => {
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setTask({ ...task, status: newStatus });
         } catch (error) {
-            Alert.alert('Ошибка', 'Не удалось обновить статус');
+            Alert.alert('Error', 'Failed to update status');
         }
     };
 
+    // Show status options dropdown
     const showStatusOptions = (): void => {
         setShowStatusDropdown(true);
     };
 
+    // Handle status change from dropdown
     const handleStatusChange = (newStatus: TaskStatus): void => {
         updateStatus(newStatus);
         setShowStatusDropdown(false);
@@ -86,15 +92,15 @@ const TaskDetailScreen = () => {
 
     if (!task) {
         return (
-            <View style={styles.container}>
-                <Text>Загрузка...</Text>
+            <View style={[styles.container, { backgroundColor: colors.background }]}>
+                <Text style={{ color: colors.text }}>Loading...</Text>
             </View>
         );
     }
 
     return (
-        <ScrollView style={styles.container}>
-            <View style={styles.card}>
+        <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+            <View style={[styles.card, { backgroundColor: colors.cardBackground, shadowColor: colors.shadow }]}>
                 <View style={styles.header}>
                     <TouchableOpacity
                         style={[styles.statusButton, { backgroundColor: getStatusColor(task.status) }]}
@@ -104,7 +110,7 @@ const TaskDetailScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Модальное окно с вариантами статусов */}
+                {/* Status options dropdown modal */}
                 <Modal
                     visible={showStatusDropdown}
                     transparent={true}
@@ -112,59 +118,58 @@ const TaskDetailScreen = () => {
                     onRequestClose={() => setShowStatusDropdown(false)}
                 >
                     <View style={styles.modalOverlay}>
-                        <View style={styles.dropdownContainer}>
-
+                        <View style={[styles.dropdownContainer, { backgroundColor: colors.cardBackground }]}>
                             <TouchableOpacity
                                 style={[styles.statusOption, { backgroundColor: getStatusColor('in-progress') }]}
                                 onPress={() => handleStatusChange('in-progress')}
                             >
-                                <Text style={styles.statusOptionText}>В процессе</Text>
+                                <Text style={styles.statusOptionText}>In Progress</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 style={[styles.statusOption, { backgroundColor: getStatusColor('completed') }]}
                                 onPress={() => handleStatusChange('completed')}
                             >
-                                <Text style={styles.statusOptionText}>Завершено</Text>
+                                <Text style={styles.statusOptionText}>Completed</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 style={[styles.statusOption, { backgroundColor: getStatusColor('cancelled') }]}
                                 onPress={() => handleStatusChange('cancelled')}
                             >
-                                <Text style={styles.statusOptionText}>Отменено</Text>
+                                <Text style={styles.statusOptionText}>Cancelled</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={styles.cancelOption}
+                                style={[styles.cancelOption, { backgroundColor: colors.inputBackground }]}
                                 onPress={() => setShowStatusDropdown(false)}
                             >
-                                <Text style={styles.cancelOptionText}>Отмена</Text>
+                                <Text style={[styles.cancelOptionText, { color: colors.text }]}>Cancel</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </Modal>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Описание</Text>
-                    <Text style={styles.sectionContent}>{task.description}</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Description</Text>
+                    <Text style={[styles.sectionContent, { color: colors.text }]}>{task.description}</Text>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Местоположение</Text>
-                    <Text style={styles.sectionContent}>{task.location}</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Location</Text>
+                    <Text style={[styles.sectionContent, { color: colors.text }]}>{task.location}</Text>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Дата и время выполнения</Text>
-                    <Text style={styles.sectionContent}>
+                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Execution Date & Time</Text>
+                    <Text style={[styles.sectionContent, { color: colors.text }]}>
                         {new Date(task.executionDate).toLocaleString()}
                     </Text>
                 </View>
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Дата создания</Text>
-                    <Text style={styles.sectionContent}>
+                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Created At</Text>
+                    <Text style={[styles.sectionContent, { color: colors.text }]}>
                         {new Date(task.createdAt).toLocaleString()}
                     </Text>
                 </View>
@@ -176,14 +181,11 @@ const TaskDetailScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
         padding: 16,
     },
     card: {
-        backgroundColor: 'white',
         borderRadius: 16,
         padding: 24,
-        shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -213,12 +215,10 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#666',
         marginBottom: 8,
     },
     sectionContent: {
         fontSize: 16,
-        color: '#333',
         lineHeight: 24,
     },
     modalOverlay: {
@@ -228,7 +228,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     dropdownContainer: {
-        backgroundColor: 'white',
         borderRadius: 12,
         padding: 16,
         width: '80%',
@@ -248,11 +247,9 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: 8,
         alignItems: 'center',
-        backgroundColor: '#f1f1f1',
         marginTop: 8,
     },
     cancelOptionText: {
-        color: '#666',
         fontWeight: '600',
     },
 });

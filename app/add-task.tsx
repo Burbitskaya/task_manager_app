@@ -5,10 +5,10 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     ScrollView,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    Modal
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -16,49 +16,61 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Task } from '../types';
 import moment from 'moment';
-import 'moment/locale/ru'; // Импортируем русскую локализацию
-
-// Устанавливаем русскую локаль для moment.js
-moment.locale('ru');
+import { useTheme } from '../components/ThemeContext';
 
 export default function AddTaskScreen() {
     const router = useRouter();
+    const { colors } = useTheme();
     const [title, setTitle] = useState<string>('');
     const [description, setDescription] = useState<string>('');
     const [location, setLocation] = useState<string>('');
     const [executionDate, setExecutionDate] = useState<Date>(new Date());
     const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
     const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+    const [modalType, setModalType] = useState<'error' | 'success'>('error');
 
+    // Format date for display
     const formatDateTime = (date: Date): string => {
-        return moment(date).format('D MMMM YYYY, HH:mm');
+        return moment(date).format('MMMM D, YYYY, h:mm A');
     };
 
+    // Show date/time picker with specified mode
     const showDatePickerModal = (mode: 'date' | 'time') => {
         setPickerMode(mode);
         setShowDatePicker(true);
     };
 
+    // Show custom modal
+    const showModal = (message: string, type: 'error' | 'success') => {
+        setModalMessage(message);
+        setModalType(type);
+        setModalVisible(true);
+    };
+
+    // Validate form inputs
     const validateForm = (): boolean => {
         if (!title.trim()) {
-            Alert.alert('Ошибка', 'Введите название задачи');
+            showModal('Please enter a task title', 'error');
             return false;
         }
         if (!description.trim()) {
-            Alert.alert('Ошибка', 'Введите описание задачи');
+            showModal('Please enter a task description', 'error');
             return false;
         }
         if (!location.trim()) {
-            Alert.alert('Ошибка', 'Введите местоположение');
+            showModal('Please enter a location', 'error');
             return false;
         }
         if (executionDate < new Date()) {
-            Alert.alert('Ошибка', 'Дата выполнения не может быть в прошлом');
+            showModal('Execution date cannot be in the past', 'error');
             return false;
         }
         return true;
     };
 
+    // Save task to AsyncStorage
     const handleSaveTask = async (): Promise<void> => {
         if (!validateForm()) return;
 
@@ -79,25 +91,29 @@ export default function AddTaskScreen() {
 
             await AsyncStorage.setItem('tasks', JSON.stringify(tasks));
 
-            router.back();
-            Alert.alert('Успех', 'Задача успешно добавлена');
+            showModal('Task added successfully', 'success');
+
+            // Navigate back only on success
+            setTimeout(() => {
+                router.back();
+            }, 1500);
         } catch (error) {
-            Alert.alert('Ошибка', 'Не удалось сохранить задачу');
+            showModal('Failed to save task', 'error');
         }
     };
 
+    // Handle date/time picker change
     const onDateChange = (event: any, selectedDate?: Date): void => {
         setShowDatePicker(false);
-
         if (selectedDate) {
             if (pickerMode === 'date') {
-                // Сохраняем время от предыдущей даты, меняем только дату
+                // Keep time from previous date, only change date
                 const newDate = new Date(selectedDate);
                 newDate.setHours(executionDate.getHours());
                 newDate.setMinutes(executionDate.getMinutes());
                 setExecutionDate(newDate);
             } else {
-                // Сохраняем дату от предыдущей даты, меняем только время
+                // Keep date from previous date, only change time
                 const newDate = new Date(executionDate);
                 newDate.setHours(selectedDate.getHours());
                 newDate.setMinutes(selectedDate.getMinutes());
@@ -108,30 +124,38 @@ export default function AddTaskScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={styles.container}
+            style={[styles.container, { backgroundColor: colors.background }]}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.formGroup}>
-                    <Text style={styles.label}>Название задачи *</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>Task Title *</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, {
+                            backgroundColor: colors.inputBackground,
+                            color: colors.text,
+                            borderColor: colors.border
+                        }]}
                         value={title}
                         onChangeText={setTitle}
-                        placeholder="Введите название задачи"
-                        placeholderTextColor="#999"
+                        placeholder="Enter task title"
+                        placeholderTextColor={colors.textSecondary}
                         maxLength={100}
                     />
                 </View>
 
                 <View style={styles.formGroup}>
-                    <Text style={styles.label}>Описание *</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>Description *</Text>
                     <TextInput
-                        style={[styles.input, styles.textArea]}
+                        style={[styles.input, styles.textArea, {
+                            backgroundColor: colors.inputBackground,
+                            color: colors.text,
+                            borderColor: colors.border
+                        }]}
                         value={description}
                         onChangeText={setDescription}
-                        placeholder="Опишите задачу подробнее"
-                        placeholderTextColor="#999"
+                        placeholder="Describe the task in detail"
+                        placeholderTextColor={colors.textSecondary}
                         multiline
                         numberOfLines={4}
                         maxLength={500}
@@ -140,45 +164,51 @@ export default function AddTaskScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                    <Text style={styles.label}>Местоположение *</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>Location *</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, {
+                            backgroundColor: colors.inputBackground,
+                            color: colors.text,
+                            borderColor: colors.border
+                        }]}
                         value={location}
                         onChangeText={setLocation}
-                        placeholder="Введите адрес или местоположение"
-                        placeholderTextColor="#999"
+                        placeholder="Enter address or location"
+                        placeholderTextColor={colors.textSecondary}
                         maxLength={200}
                     />
                 </View>
 
                 <View style={styles.formGroup}>
-                    <Text style={styles.label}>Дата и время выполнения *</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>Execution Date & Time *</Text>
 
                     <View style={styles.dateTimeContainer}>
                         <TouchableOpacity
-                            style={styles.dateTimeButton}
+                            style={[styles.dateTimeButton, {
+                                backgroundColor: colors.inputBackground,
+                                borderColor: colors.border
+                            }]}
                             onPress={() => showDatePickerModal('date')}
                         >
-                            <Ionicons name="calendar" size={20} color="#007aff" />
-                            <Text style={styles.dateTimeText}>
-                                {moment(executionDate).format('D MMMM YYYY')}
+                            <Ionicons name="calendar" size={20} color={colors.primary} />
+                            <Text style={[styles.dateTimeText, { color: colors.text }]}>
+                                {moment(executionDate).format('MMMM D, YYYY')}
                             </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={styles.dateTimeButton}
+                            style={[styles.dateTimeButton, {
+                                backgroundColor: colors.inputBackground,
+                                borderColor: colors.border
+                            }]}
                             onPress={() => showDatePickerModal('time')}
                         >
-                            <Ionicons name="time" size={20} color="#007aff" />
-                            <Text style={styles.dateTimeText}>
-                                {moment(executionDate).format('HH:mm')}
+                            <Ionicons name="time" size={20} color={colors.primary} />
+                            <Text style={[styles.dateTimeText, { color: colors.text }]}>
+                                {moment(executionDate).format('h:mm A')}
                             </Text>
                         </TouchableOpacity>
                     </View>
-
-                    <Text style={styles.selectedDateTime}>
-                        Выбрано: {formatDateTime(executionDate)}
-                    </Text>
                 </View>
 
                 {showDatePicker && (
@@ -188,27 +218,62 @@ export default function AddTaskScreen() {
                         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                         onChange={onDateChange}
                         minimumDate={new Date()}
-                        locale="ru-RU"
+                        locale="en-US"
                     />
                 )}
 
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity
-                        style={styles.cancelButton}
+                        style={[styles.cancelButton, { backgroundColor: colors.danger }]}
                         onPress={() => router.back()}
                     >
-                        <Text style={styles.cancelButtonText}>Отмена</Text>
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.saveButton, (!title || !description || !location) && styles.saveButtonDisabled]}
+                        style={[
+                            styles.saveButton,
+                            { backgroundColor: colors.primary },
+                            (!title || !description || !location) && { backgroundColor: colors.textSecondary }
+                        ]}
                         onPress={handleSaveTask}
                         disabled={!title || !description || !location}
                     >
-                        <Text style={styles.saveButtonText}>Сохранить</Text>
+                        <Text style={styles.saveButtonText}>Save</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+
+            {/* Custom Modal */}
+            <Modal
+                visible={modalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
+                        <Ionicons
+                            name={modalType === 'success' ? 'checkmark-circle' : 'alert-circle'}
+                            size={48}
+                            color={modalType === 'success' ? colors.success : colors.danger}
+                            style={styles.modalIcon}
+                        />
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>
+                            {modalType === 'success' ? 'Success' : 'Error'}
+                        </Text>
+                        <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+                            {modalMessage}
+                        </Text>
+                        <TouchableOpacity
+                            style={[styles.modalButton, { backgroundColor: modalType === 'success' ? colors.success : colors.danger }]}
+                            onPress={() => setModalVisible(false)}
+                        >
+                            <Text style={styles.modalButtonText}>OK</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -216,7 +281,6 @@ export default function AddTaskScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
     },
     scrollContent: {
         padding: 16,
@@ -229,19 +293,15 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 8,
-        color: '#333',
     },
     input: {
-        backgroundColor: 'white',
         padding: 16,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#ddd',
         fontSize: 16,
-        color: '#333',
     },
     textArea: {
-        minHeight: 120,
+        minHeight: 130,
         textAlignVertical: 'top',
     },
     dateTimeContainer: {
@@ -255,32 +315,22 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'white',
         padding: 16,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#ddd',
         gap: 8,
     },
     dateTimeText: {
         fontSize: 16,
-        color: '#333',
-    },
-    selectedDateTime: {
-        fontSize: 14,
-        color: '#666',
-        textAlign: 'center',
-        marginTop: 8,
     },
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         gap: 16,
-        marginTop: 32,
+        marginTop: 8,
     },
     cancelButton: {
         flex: 1,
-        backgroundColor: '#ff3b30',
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -292,15 +342,51 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         flex: 1,
-        backgroundColor: '#007aff',
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
     },
-    saveButtonDisabled: {
-        backgroundColor: '#ccc',
-    },
     saveButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 16,
+    },
+    modalContent: {
+        borderRadius: 16,
+        padding: 24,
+        width: '100%',
+        maxWidth: 400,
+        alignItems: 'center',
+    },
+    modalIcon: {
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 8,
+    },
+    modalMessage: {
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 22,
+    },
+    modalButton: {
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+        minWidth: 100,
+        alignItems: 'center',
+    },
+    modalButtonText: {
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
