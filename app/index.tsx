@@ -78,7 +78,6 @@ export default function HomeScreen() {
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setSingleDeleteModalVisible(false);
             setTaskToDelete(null);
-            showNotification('Task deleted successfully', 'success');
         } catch (error) {
             showNotification('Failed to delete task', 'error');
             setSingleDeleteModalVisible(false);
@@ -102,7 +101,6 @@ export default function HomeScreen() {
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setMultiDeleteModalVisible(false);
             cancelSelectionMode();
-            showNotification('Tasks deleted successfully', 'success');
         } catch (error) {
             showNotification('Failed to delete tasks', 'error');
             setMultiDeleteModalVisible(false);
@@ -128,7 +126,6 @@ export default function HomeScreen() {
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setEditStatusModalVisible(false);
             cancelSelectionMode();
-            showNotification('Tasks status updated successfully', 'success');
         } catch (error) {
             showNotification('Failed to update tasks status', 'error');
             setEditStatusModalVisible(false);

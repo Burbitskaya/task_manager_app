@@ -67,7 +67,6 @@ const TaskDetailScreen = () => {
             );
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setTask({...task, status: newStatus});
-            showNotification('Status updated successfully', 'success');
         } catch (error) {
             showNotification('Failed to update status', 'error');
         }
