@@ -7,7 +7,7 @@ import {
     StyleSheet,
     SafeAreaView,
     Modal,
-    Dimensions
+    Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,8 +15,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Task, TaskStatus } from '../types';
 import { useTheme } from '../components/ThemeContext';
-
-const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -26,9 +24,11 @@ export default function HomeScreen() {
         field: 'date' | 'status';
         direction: 'asc' | 'desc';
     }>({ field: 'date', direction: 'desc' });
-    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [singleDeleteModalVisible, setSingleDeleteModalVisible] = useState(false);
+    const [multiDeleteModalVisible, setMultiDeleteModalVisible] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
     // Load tasks when screen comes into focus
     useFocusEffect(
@@ -45,22 +45,17 @@ export default function HomeScreen() {
                 setTasks(JSON.parse(storedTasks));
             }
         } catch (error) {
-            // Handle error with custom modal if needed
+            Alert.alert('Error', 'Failed to load tasks');
         }
     };
 
-    // Toggle view mode between list and grid
-    const toggleViewMode = (): void => {
-        setViewMode(prevMode => prevMode === 'list' ? 'grid' : 'list');
-    };
-
-    // Show delete confirmation modal
+    // Show delete confirmation modal for single task
     const showDeleteConfirmation = (id: string): void => {
         setTaskToDelete(id);
-        setDeleteModalVisible(true);
+        setSingleDeleteModalVisible(true);
     };
 
-    // Handle task deletion
+    // Handle single task deletion
     const handleDeleteTask = async (): Promise<void> => {
         if (!taskToDelete) return;
 
@@ -68,29 +63,82 @@ export default function HomeScreen() {
             const updatedTasks = tasks.filter(task => task.id !== taskToDelete);
             setTasks(updatedTasks);
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
-            setDeleteModalVisible(false);
+            setSingleDeleteModalVisible(false);
             setTaskToDelete(null);
         } catch (error) {
-            // Handle error
-            setDeleteModalVisible(false);
+            Alert.alert('Error', 'Failed to delete task');
+            setSingleDeleteModalVisible(false);
         }
     };
 
-    // Cancel deletion
-    const cancelDelete = (): void => {
-        setDeleteModalVisible(false);
+    // Cancel single deletion
+    const cancelSingleDelete = (): void => {
+        setSingleDeleteModalVisible(false);
         setTaskToDelete(null);
+    };
+
+    // Show delete confirmation modal for multiple tasks
+    const showMultiDeleteConfirmation = (): void => {
+        if (selectedTasks.length > 0) {
+            setMultiDeleteModalVisible(true);
+        }
+    };
+
+    // Handle multiple task deletion
+    const handleMultiDelete = async (): Promise<void> => {
+        if (selectedTasks.length === 0) return;
+
+        try {
+            const updatedTasks = tasks.filter(task => !selectedTasks.includes(task.id));
+            setTasks(updatedTasks);
+            await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
+            setMultiDeleteModalVisible(false);
+            cancelSelectionMode();
+        } catch (error) {
+            Alert.alert('Error', 'Failed to delete tasks');
+            setMultiDeleteModalVisible(false);
+        }
+    };
+
+    // Cancel multiple deletion
+    const cancelMultiDelete = (): void => {
+        setMultiDeleteModalVisible(false);
+    };
+
+    // Toggle task selection
+    const toggleTaskSelection = (id: string): void => {
+        setSelectedTasks(prev => {
+            if (prev.includes(id)) {
+                return prev.filter(taskId => taskId !== id);
+            } else {
+                return [...prev, id];
+            }
+        });
+    };
+
+    // Enable selection mode
+    const enableSelectionMode = (id: string): void => {
+        setIsSelectionMode(true);
+        setSelectedTasks([id]);
+    };
+
+    // Cancel selection mode
+    const cancelSelectionMode = (): void => {
+        setIsSelectionMode(false);
+        setSelectedTasks([]);
     };
 
     // Handle sort configuration change
     const handleSort = (field: 'date' | 'status') => {
         setSortConfig(prev => {
+            // If clicking the same field, toggle direction
             if (prev.field === field) {
                 return {
                     field,
                     direction: prev.direction === 'asc' ? 'desc' : 'asc'
                 };
             }
+            // If clicking a new field, set it with default direction
             return {
                 field,
                 direction: 'desc'
@@ -108,21 +156,39 @@ export default function HomeScreen() {
             if (sortConfig.field === 'date') {
                 comparison = new Date(a.executionDate).getTime() - new Date(b.executionDate).getTime();
             } else {
+                // Sort by status
                 const statusOrder = { 'completed': 1, 'in-progress': 2, 'pending': 3, 'cancelled': 4 };
                 comparison = statusOrder[a.status] - statusOrder[b.status];
             }
 
+            // Apply sort direction
             return sortConfig.direction === 'asc' ? comparison : -comparison;
         });
 
         return sortedTasks;
     };
 
-    // Render individual task item in list view
-    const renderTaskItemList = ({ item }: { item: Task }) => (
+    // Render individual task item
+    const renderTaskItem = ({ item }: { item: Task }) => (
         <TouchableOpacity
-            style={[styles.taskItem, styles.taskItemList, { backgroundColor: colors.cardBackground, shadowColor: colors.shadow }]}
-            onPress={() => router.push(`/task/${item.id}`)}
+            style={[
+                styles.taskItem,
+                {
+                    backgroundColor: colors.cardBackground,
+                    shadowColor: colors.shadow,
+                    borderColor: selectedTasks.includes(item.id) ? colors.primary : 'transparent',
+                    borderWidth: selectedTasks.includes(item.id) ? 2 : 0
+                }
+            ]}
+            onPress={() => {
+                if (isSelectionMode) {
+                    toggleTaskSelection(item.id);
+                } else {
+                    router.push(`/task/${item.id}`);
+                }
+            }}
+            onLongPress={() => enableSelectionMode(item.id)}
+            delayLongPress={300}
         >
             <View style={styles.taskInfo}>
                 <Text style={[styles.taskTitle, { color: colors.text }]}>{item.title}</Text>
@@ -134,36 +200,18 @@ export default function HomeScreen() {
                 </View>
             </View>
             <View style={styles.taskActions}>
-                <TouchableOpacity onPress={() => showDeleteConfirmation(item.id)}>
-                    <Ionicons name="trash-outline" size={24} color={colors.danger} />
-                </TouchableOpacity>
+                {isSelectionMode ? (
+                    <Ionicons
+                        name={selectedTasks.includes(item.id) ? "checkbox" : "square-outline"}
+                        size={24}
+                        color={selectedTasks.includes(item.id) ? colors.primary : colors.textSecondary}
+                    />
+                ) : (
+                    <TouchableOpacity onPress={() => showDeleteConfirmation(item.id)}>
+                        <Ionicons name="trash-outline" size={24} color={colors.danger} />
+                    </TouchableOpacity>
+                )}
             </View>
-        </TouchableOpacity>
-    );
-
-    // Render individual task item in grid view
-    const renderTaskItemGrid = ({ item }: { item: Task }) => (
-        <TouchableOpacity
-            style={[styles.taskItem, styles.taskItemGrid, { backgroundColor: colors.cardBackground, shadowColor: colors.shadow }]}
-            onPress={() => router.push(`/task/${item.id}`)}
-        >
-            <View style={styles.taskInfoGrid}>
-                <Text style={[styles.taskTitleGrid, { color: colors.text }]} numberOfLines={2}>
-                    {item.title}
-                </Text>
-                <Text style={[styles.taskDateGrid, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {new Date(item.executionDate).toLocaleDateString()}
-                </Text>
-                <View style={[styles.statusBadgeGrid, { backgroundColor: getStatusColor(item.status) }]}>
-                    <Text style={styles.statusTextGrid}>{getStatusText(item.status)}</Text>
-                </View>
-            </View>
-            <TouchableOpacity
-                style={styles.taskActionsGrid}
-                onPress={() => showDeleteConfirmation(item.id)}
-            >
-                <Ionicons name="trash-outline" size={20} color={colors.danger} />
-            </TouchableOpacity>
         </TouchableOpacity>
     );
 
@@ -198,106 +246,101 @@ export default function HomeScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            {/* Sort panel */}
-            <View style={[styles.sortContainer, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
-                <Text style={[styles.sortLabel, { color: colors.textSecondary }]}>Sort by:</Text>
-                <TouchableOpacity
-                    style={[styles.sortButton, { backgroundColor: colors.inputBackground }]}
-                    onPress={() => handleSort('date')}
-                >
-                    <Ionicons
-                        name={getSortIcon('date')}
-                        size={16}
-                        color={sortConfig.field === 'date' ? colors.primary : colors.textSecondary}
-                    />
-                    <Text style={[
-                        styles.sortButtonText,
-                        { color: sortConfig.field === 'date' ? colors.primary : colors.textSecondary },
-                        sortConfig.field === 'date' && styles.sortButtonActive
-                    ]}>
-                        Date
+            {/* Selection mode header */}
+            {isSelectionMode && (
+                <View style={[styles.selectionHeader, { backgroundColor: colors.primary }]}>
+                    <TouchableOpacity onPress={cancelSelectionMode}>
+                        <Ionicons name="close" size={24} color="white" />
+                    </TouchableOpacity>
+                    <Text style={styles.selectionHeaderText}>
+                        {selectedTasks.length} {selectedTasks.length === 1 ? 'item' : 'items'} selected
                     </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.sortButton, { backgroundColor: colors.inputBackground }]}
-                    onPress={() => handleSort('status')}
-                >
-                    <Ionicons
-                        name={getSortIcon('status')}
-                        size={16}
-                        color={sortConfig.field === 'status' ? colors.primary : colors.textSecondary}
-                    />
-                    <Text style={[
-                        styles.sortButtonText,
-                        { color: sortConfig.field === 'status' ? colors.primary : colors.textSecondary },
-                        sortConfig.field === 'status' && styles.sortButtonActive
-                    ]}>
-                        Status
-                    </Text>
-                </TouchableOpacity>
-
-                {/* View mode toggle button */}
-                <TouchableOpacity
-                    style={[styles.viewModeButton, { backgroundColor: colors.inputBackground }]}
-                    onPress={toggleViewMode}
-                >
-                    <Ionicons
-                        name={viewMode === 'list' ? 'grid' : 'list'}
-                        size={20}
-                        color={colors.primary}
-                    />
-                </TouchableOpacity>
-            </View>
-
-            {/* Tasks list - using key to force re-render when viewMode changes */}
-            {viewMode === 'list' ? (
-                <FlatList
-                    key="list-view" // Key forces re-render when changed
-                    data={sortTasks(tasks)}
-                    renderItem={renderTaskItemList}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={styles.list}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <Ionicons name="document-text-outline" size={64} color={colors.textSecondary} />
-                            <Text style={[styles.emptyText, { color: colors.text }]}>No tasks</Text>
-                            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Add your first task</Text>
-                        </View>
-                    }
-                />
-            ) : (
-                <FlatList
-                    key="grid-view" // Key forces re-render when changed
-                    data={sortTasks(tasks)}
-                    renderItem={renderTaskItemGrid}
-                    keyExtractor={item => item.id}
-                    numColumns={2}
-                    contentContainerStyle={styles.listGrid}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <Ionicons name="document-text-outline" size={64} color={colors.textSecondary} />
-                            <Text style={[styles.emptyText, { color: colors.text }]}>No tasks</Text>
-                            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Add your first task</Text>
-                        </View>
-                    }
-                />
+                    <TouchableOpacity
+                        onPress={showMultiDeleteConfirmation}
+                        disabled={selectedTasks.length === 0}
+                    >
+                        <Ionicons
+                            name="trash"
+                            size={24}
+                            color={selectedTasks.length > 0 ? "white" : "rgba(255,255,255,0.5)"}
+                        />
+                    </TouchableOpacity>
+                </View>
             )}
 
-            {/* Floating action button */}
-            <TouchableOpacity
-                style={[styles.fab, { backgroundColor: colors.primary }]}
-                onPress={() => router.push('/add-task')}
-            >
-                <Ionicons name="add" size={24} color="white" />
-            </TouchableOpacity>
+            {/* Sort panel */}
+            {!isSelectionMode && (
+                <View style={[styles.sortContainer, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
+                    <Text style={[styles.sortLabel, { color: colors.textSecondary }]}>Sort by:</Text>
+                    <TouchableOpacity
+                        style={[styles.sortButton, { backgroundColor: colors.inputBackground }]}
+                        onPress={() => handleSort('date')}
+                    >
+                        <Ionicons
+                            name={getSortIcon('date')}
+                            size={16}
+                            color={sortConfig.field === 'date' ? colors.primary : colors.textSecondary}
+                        />
+                        <Text style={[
+                            styles.sortButtonText,
+                            { color: sortConfig.field === 'date' ? colors.primary : colors.textSecondary },
+                            sortConfig.field === 'date' && styles.sortButtonActive
+                        ]}>
+                            Date
+                        </Text>
+                    </TouchableOpacity>
 
-            {/* Custom Delete Confirmation Modal */}
+                    <TouchableOpacity
+                        style={[styles.sortButton, { backgroundColor: colors.inputBackground }]}
+                        onPress={() => handleSort('status')}
+                    >
+                        <Ionicons
+                            name={getSortIcon('status')}
+                            size={16}
+                            color={sortConfig.field === 'status' ? colors.primary : colors.textSecondary}
+                        />
+                        <Text style={[
+                            styles.sortButtonText,
+                            { color: sortConfig.field === 'status' ? colors.primary : colors.textSecondary },
+                            sortConfig.field === 'status' && styles.sortButtonActive
+                        ]}>
+                            Status
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Tasks list */}
+            <FlatList
+                data={sortTasks(tasks)}
+                renderItem={renderTaskItem}
+                keyExtractor={item => item.id}
+                contentContainerStyle={styles.list}
+                ListEmptyComponent={
+                    <View style={styles.emptyState}>
+                        <Ionicons name="document-text-outline" size={64} color={colors.textSecondary} />
+                        <Text style={[styles.emptyText, { color: colors.text }]}>No tasks</Text>
+                        <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Add your first task</Text>
+                    </View>
+                }
+            />
+
+            {/* Floating action button - only show when not in selection mode */}
+            {!isSelectionMode && (
+                <TouchableOpacity
+                    style={[styles.fab, { backgroundColor: colors.primary }]}
+                    onPress={() => router.push('/add-task')}
+                >
+                    <Ionicons name="add" size={24} color="white" />
+                </TouchableOpacity>
+            )}
+
+            {/* Single Delete Confirmation Modal */}
             <Modal
-                visible={deleteModalVisible}
+                visible={singleDeleteModalVisible}
                 transparent={true}
                 animationType="fade"
-                onRequestClose={cancelDelete}
+                onRequestClose={cancelSingleDelete}
             >
                 <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
                     <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
@@ -308,13 +351,44 @@ export default function HomeScreen() {
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
                                 style={[styles.modalButton, { backgroundColor: colors.inputBackground }]}
-                                onPress={cancelDelete}
+                                onPress={cancelSingleDelete}
                             >
                                 <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.modalButton, { backgroundColor: colors.danger }]}
                                 onPress={handleDeleteTask}
+                            >
+                                <Text style={[styles.modalButtonText, { color: 'white' }]}>Delete</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Multiple Delete Confirmation Modal */}
+            <Modal
+                visible={multiDeleteModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={cancelMultiDelete}
+            >
+                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Delete Tasks</Text>
+                        <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+                            Are you sure you want to delete {selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'}? This action cannot be undone.
+                        </Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, { backgroundColor: colors.inputBackground }]}
+                                onPress={cancelMultiDelete}
+                            >
+                                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, { backgroundColor: colors.danger }]}
+                                onPress={handleMultiDelete}
                             >
                                 <Text style={[styles.modalButtonText, { color: 'white' }]}>Delete</Text>
                             </TouchableOpacity>
@@ -330,22 +404,32 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    selectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+    },
+    selectionHeaderText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
     sortContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding:12,
+        padding: 16,
         borderBottomWidth: 1,
     },
     sortLabel: {
         marginRight: 12,
-        marginLeft:12,
         fontSize: 14,
     },
     sortButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 16,
         marginRight: 8,
     },
@@ -356,44 +440,23 @@ const styles = StyleSheet.create({
     sortButtonActive: {
         fontWeight: '600',
     },
-    viewModeButton: {
-        padding: 8,
-        borderRadius: 8,
-        marginLeft: 'auto',
-    },
     list: {
         padding: 16,
-        paddingBottom: 80,
-    },
-    listGrid: {
-        padding: 8,
-        paddingBottom: 80,
+        paddingBottom: 80, // Padding for FAB
     },
     taskItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        marginBottom: 12,
         borderRadius: 12,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
     },
-    taskItemList: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        marginBottom: 12,
-    },
-    taskItemGrid: {
-        flex: 1,
-        margin: 8,
-        padding: 12,
-        height: 140,
-        justifyContent: 'space-between',
-    },
     taskInfo: {
-        flex: 1,
-    },
-    taskInfoGrid: {
         flex: 1,
     },
     taskTitle: {
@@ -401,17 +464,8 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginBottom: 4,
     },
-    taskTitleGrid: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 4,
-    },
     taskDate: {
         fontSize: 14,
-        marginBottom: 8,
-    },
-    taskDateGrid: {
-        fontSize: 12,
         marginBottom: 8,
     },
     statusBadge: {
@@ -420,34 +474,19 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         alignSelf: 'flex-start',
     },
-    statusBadgeGrid: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
-        alignSelf: 'flex-start',
-    },
     statusText: {
         color: 'white',
         fontSize: 12,
-        fontWeight: '500',
-    },
-    statusTextGrid: {
-        color: 'white',
-        fontSize: 10,
         fontWeight: '500',
     },
     taskActions: {
         flexDirection: 'row',
         gap: 16,
     },
-    taskActionsGrid: {
-        alignSelf: 'flex-end',
-    },
     emptyState: {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 64,
-        width: '100%',
     },
     emptyText: {
         fontSize: 18,

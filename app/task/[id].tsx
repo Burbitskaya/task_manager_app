@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { Task, TaskStatus } from '../../types';
 import { useTheme } from '../../components/ThemeContext';
 
@@ -12,21 +13,18 @@ const TaskDetailScreen = () => {
     const [task, setTask] = useState<Task | null>(null);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
-    // Load task when component mounts or id changes
     useEffect(() => {
         if (id) {
             loadTask();
         }
     }, [id]);
 
-    // Set navigation title to task title
     useEffect(() => {
         if (task) {
             navigation.setOptions({ title: task.title });
         }
     }, [task, navigation]);
 
-    // Load task from AsyncStorage
     const loadTask = async (): Promise<void> => {
         try {
             const storedTasks = await AsyncStorage.getItem('tasks');
@@ -40,7 +38,6 @@ const TaskDetailScreen = () => {
         }
     };
 
-    // Get color for status badge
     const getStatusColor = (status: TaskStatus): string => {
         switch (status) {
             case 'completed': return colors.success;
@@ -51,7 +48,6 @@ const TaskDetailScreen = () => {
         }
     };
 
-    // Get text for status badge
     const getStatusText = (status: TaskStatus): string => {
         switch (status) {
             case 'completed': return 'Completed';
@@ -62,7 +58,6 @@ const TaskDetailScreen = () => {
         }
     };
 
-    // Update task status in AsyncStorage
     const updateStatus = async (newStatus: TaskStatus): Promise<void> => {
         if (!task) return;
 
@@ -79,12 +74,10 @@ const TaskDetailScreen = () => {
         }
     };
 
-    // Show status options dropdown
     const showStatusOptions = (): void => {
         setShowStatusDropdown(true);
     };
 
-    // Handle status change from dropdown
     const handleStatusChange = (newStatus: TaskStatus): void => {
         updateStatus(newStatus);
         setShowStatusDropdown(false);
@@ -106,11 +99,19 @@ const TaskDetailScreen = () => {
                         style={[styles.statusButton, { backgroundColor: getStatusColor(task.status) }]}
                         onPress={showStatusOptions}
                     >
-                        <Text style={styles.statusButtonText}>{getStatusText(task.status)}</Text>
+                        <View style={styles.statusButtonContent}>
+                            <Text style={styles.statusButtonText}>{getStatusText(task.status)}</Text>
+
+                            <Ionicons
+                                name="create-outline"
+                                size={14}
+                                color="rgba(255,255,255,0.7)"
+                                style={styles.editIcon}
+                            />
+                        </View>
                     </TouchableOpacity>
                 </View>
 
-                {/* Status options dropdown modal */}
                 <Modal
                     visible={showStatusDropdown}
                     transparent={true}
@@ -202,12 +203,19 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 20,
         minWidth: 100,
+    },
+    statusButtonContent: {
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
     },
     statusButtonText: {
         color: 'white',
         fontWeight: '600',
         fontSize: 12,
+    },
+    editIcon: {
+        marginLeft: 4,
     },
     section: {
         marginBottom: 24,
