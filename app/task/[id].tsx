@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Task, TaskStatus } from '../../types';
@@ -9,9 +9,11 @@ import { useTheme } from '../../components/ThemeContext';
 const TaskDetailScreen = () => {
     const { id } = useLocalSearchParams();
     const navigation = useNavigation();
+    const router = useRouter();
     const { colors } = useTheme();
     const [task, setTask] = useState<Task | null>(null);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -74,6 +76,22 @@ const TaskDetailScreen = () => {
         }
     };
 
+    const deleteTask = async (): Promise<void> => {
+        if (!task) return;
+
+        try {
+            const storedTasks = await AsyncStorage.getItem('tasks');
+            const tasks: Task[] = storedTasks ? JSON.parse(storedTasks) : [];
+            const updatedTasks = tasks.filter(t => t.id !== task.id);
+            await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
+            setShowDeleteModal(false);
+            router.back(); // Вернуться на предыдущий экран после удаления
+        } catch (error) {
+            Alert.alert('Error', 'Failed to delete task');
+            setShowDeleteModal(false);
+        }
+    };
+
     const showStatusOptions = (): void => {
         setShowStatusDropdown(true);
     };
@@ -81,6 +99,14 @@ const TaskDetailScreen = () => {
     const handleStatusChange = (newStatus: TaskStatus): void => {
         updateStatus(newStatus);
         setShowStatusDropdown(false);
+    };
+
+    const showDeleteConfirmation = (): void => {
+        setShowDeleteModal(true);
+    };
+
+    const cancelDelete = (): void => {
+        setShowDeleteModal(false);
     };
 
     if (!task) {
@@ -101,7 +127,6 @@ const TaskDetailScreen = () => {
                     >
                         <View style={styles.statusButtonContent}>
                             <Text style={styles.statusButtonText}>{getStatusText(task.status)}</Text>
-
                             <Ionicons
                                 name="create-outline"
                                 size={14}
@@ -110,8 +135,17 @@ const TaskDetailScreen = () => {
                             />
                         </View>
                     </TouchableOpacity>
+
+                    {/* Кнопка удаления */}
+                    <TouchableOpacity
+                        style={[styles.deleteButton]}
+                        onPress={showDeleteConfirmation}
+                    >
+                        <Ionicons name="trash-outline" size={24} color={colors.danger} />
+                    </TouchableOpacity>
                 </View>
 
+                {/* Модальное окно изменения статуса */}
                 <Modal
                     visible={showStatusDropdown}
                     transparent={true}
@@ -147,6 +181,37 @@ const TaskDetailScreen = () => {
                             >
                                 <Text style={[styles.cancelOptionText, { color: colors.text }]}>Cancel</Text>
                             </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Модальное окно подтверждения удаления */}
+                <Modal
+                    visible={showDeleteModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={cancelDelete}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Delete Task</Text>
+                            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+                                Are you sure you want to delete this task? This action cannot be undone.
+                            </Text>
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, { backgroundColor: colors.inputBackground }]}
+                                    onPress={cancelDelete}
+                                >
+                                    <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, { backgroundColor: colors.danger }]}
+                                    onPress={deleteTask}
+                                >
+                                    <Text style={[styles.modalButtonText, { color: 'white' }]}>Delete</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
                 </Modal>
@@ -217,6 +282,11 @@ const styles = StyleSheet.create({
     editIcon: {
         marginLeft: 4,
     },
+    deleteButton: {
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        margin: 0,
+    },
     section: {
         marginBottom: 24,
     },
@@ -258,6 +328,39 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     cancelOptionText: {
+        fontWeight: '600',
+    },
+    // Стили для модального окна удаления
+    modalContent: {
+        borderRadius: 12,
+        padding: 24,
+        width: '80%',
+        maxWidth: 400,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 8,
+    },
+    modalMessage: {
+        fontSize: 16,
+        marginBottom: 24,
+        lineHeight: 20,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 8,
+    },
+    modalButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 6,
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    modalButtonText: {
+        fontSize: 16,
         fontWeight: '600',
     },
 });
