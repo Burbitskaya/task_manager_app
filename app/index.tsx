@@ -168,53 +168,6 @@ export default function HomeScreen() {
         return sortedTasks;
     };
 
-    // Render individual task item
-    const renderTaskItem = ({ item }: { item: Task }) => (
-        <TouchableOpacity
-            style={[
-                styles.taskItem,
-                {
-                    backgroundColor: colors.cardBackground,
-                    shadowColor: colors.shadow,
-                    borderColor: selectedTasks.includes(item.id) ? colors.primary : 'transparent',
-                    borderWidth: selectedTasks.includes(item.id) ? 2 : 0
-                }
-            ]}
-            onPress={() => {
-                if (isSelectionMode) {
-                    toggleTaskSelection(item.id);
-                } else {
-                    router.push(`/task/${item.id}`);
-                }
-            }}
-            onLongPress={() => enableSelectionMode(item.id)}
-            delayLongPress={300}
-        >
-            <View style={styles.taskInfo}>
-                <Text style={[styles.taskTitle, { color: colors.text }]}>{item.title}</Text>
-                <Text style={[styles.taskDate, { color: colors.textSecondary }]}>
-                    {new Date(item.executionDate).toLocaleDateString()}
-                </Text>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                    <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
-                </View>
-            </View>
-            <View style={styles.taskActions}>
-                {isSelectionMode ? (
-                    <Ionicons
-                        name={selectedTasks.includes(item.id) ? "checkbox" : "square-outline"}
-                        size={24}
-                        color={selectedTasks.includes(item.id) ? colors.primary : colors.textSecondary}
-                    />
-                ) : (
-                    <TouchableOpacity onPress={() => showDeleteConfirmation(item.id)}>
-                        <Ionicons name="trash-outline" size={24} color={colors.danger} />
-                    </TouchableOpacity>
-                )}
-            </View>
-        </TouchableOpacity>
-    );
-
     // Get color for status badge
     const getStatusColor = (status: TaskStatus): string => {
         switch (status) {
@@ -242,6 +195,61 @@ export default function HomeScreen() {
         if (sortConfig.field !== field) return 'swap-vertical';
 
         return sortConfig.direction === 'asc' ? 'arrow-up' : 'arrow-down';
+    };
+
+    // Render individual task item
+    const renderTaskItem = ({ item }: { item: Task }) => {
+        const statusColor = getStatusColor(item.status);
+
+        return (
+            <TouchableOpacity
+                style={[
+                    styles.taskItem,
+                    {
+                        backgroundColor: colors.cardBackground,
+                        shadowColor: colors.shadow,
+                        borderColor: selectedTasks.includes(item.id) ? colors.primary : statusColor,
+                        borderWidth: 2,
+                    }
+                ]}
+                onPress={() => {
+                    if (isSelectionMode) {
+                        toggleTaskSelection(item.id);
+                    } else {
+                        router.push(`/task/${item.id}`);
+                    }
+                }}
+                onLongPress={() => enableSelectionMode(item.id)}
+                delayLongPress={300}
+            >
+                {/* Status header strip */}
+                <View style={[styles.statusHeader, { backgroundColor: statusColor }]}>
+                    <Text style={styles.statusHeaderText}>{getStatusText(item.status)}</Text>
+                </View>
+
+                <View style={styles.taskContent}>
+                    <View style={styles.taskInfo}>
+                        <Text style={[styles.taskTitle, { color: colors.text }]}>{item.title}</Text>
+                        <Text style={[styles.taskDate, { color: colors.textSecondary }]}>
+                            {new Date(item.executionDate).toLocaleDateString()}
+                        </Text>
+                    </View>
+                    <View style={styles.taskActions}>
+                        {isSelectionMode ? (
+                            <Ionicons
+                                name={selectedTasks.includes(item.id) ? "checkbox" : "square-outline"}
+                                size={24}
+                                color={selectedTasks.includes(item.id) ? colors.primary : colors.textSecondary}
+                            />
+                        ) : (
+                            <TouchableOpacity onPress={() => showDeleteConfirmation(item.id)}>
+                                <Ionicons name="trash-outline" size={24} color={colors.danger} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
     };
 
     return (
@@ -445,16 +453,28 @@ const styles = StyleSheet.create({
         paddingBottom: 80, // Padding for FAB
     },
     taskItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        marginBottom: 12,
+        marginBottom: 16,
         borderRadius: 12,
+        overflow: 'hidden',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
+    },
+    statusHeader: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+    },
+    statusHeaderText: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    taskContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
     },
     taskInfo: {
         flex: 1,
@@ -466,22 +486,9 @@ const styles = StyleSheet.create({
     },
     taskDate: {
         fontSize: 14,
-        marginBottom: 8,
-    },
-    statusBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
-        alignSelf: 'flex-start',
-    },
-    statusText: {
-        color: 'white',
-        fontSize: 12,
-        fontWeight: '500',
     },
     taskActions: {
-        flexDirection: 'row',
-        gap: 16,
+        marginLeft: 16,
     },
     emptyState: {
         alignItems: 'center',
