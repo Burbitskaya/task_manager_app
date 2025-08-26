@@ -16,6 +16,7 @@ import { Task, TaskStatus } from '../types';
 import { useTheme } from '../components/ThemeContext';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import StatusEditModal from '../components/StatusEditModal';
+import TaskCard from '../components/TaskCard';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -184,28 +185,6 @@ export default function HomeScreen() {
         return sortedTasks;
     };
 
-    // Get color for status badge
-    const getStatusColor = (status: TaskStatus): string => {
-        switch (status) {
-            case 'completed': return colors.success;
-            case 'in-progress': return colors.info;
-            case 'pending': return colors.warning;
-            case 'cancelled': return colors.danger;
-            default: return colors.info;
-        }
-    };
-
-    // Get text for status badge
-    const getStatusText = (status: TaskStatus): string => {
-        switch (status) {
-            case 'completed': return 'Completed';
-            case 'in-progress': return 'In Progress';
-            case 'pending': return 'Pending';
-            case 'cancelled': return 'Cancelled';
-            default: return status;
-        }
-    };
-
     // Get icon for sort button
     const getSortIcon = (field: 'date' | 'status') => {
         if (sortConfig.field !== field) return 'swap-vertical';
@@ -215,19 +194,13 @@ export default function HomeScreen() {
 
     // Render individual task item
     const renderTaskItem = ({ item }: { item: Task }) => {
-        const statusColor = getStatusColor(item.status);
+        const isSelected = selectedTasks.includes(item.id);
 
         return (
-            <TouchableOpacity
-                style={[
-                    styles.taskItem,
-                    {
-                        backgroundColor: colors.cardBackground,
-                        shadowColor: colors.shadow,
-                        borderColor: selectedTasks.includes(item.id) ? colors.primary : statusColor,
-                        borderWidth: 2,
-                    }
-                ]}
+            <TaskCard
+                task={item}
+                isSelectionMode={isSelectionMode}
+                isSelected={isSelected}
                 onPress={() => {
                     if (isSelectionMode) {
                         toggleTaskSelection(item.id);
@@ -236,35 +209,8 @@ export default function HomeScreen() {
                     }
                 }}
                 onLongPress={() => enableSelectionMode(item.id)}
-                delayLongPress={300}
-            >
-                {/* Status header strip */}
-                <View style={[styles.statusHeader, { backgroundColor: statusColor }]}>
-                    <Text style={styles.statusHeaderText}>{getStatusText(item.status)}</Text>
-                </View>
-
-                <View style={styles.taskContent}>
-                    <View style={styles.taskInfo}>
-                        <Text style={[styles.taskTitle, { color: colors.text }]}>{item.title}</Text>
-                        <Text style={[styles.taskDate, { color: colors.textSecondary }]}>
-                            {new Date(item.executionDate).toLocaleDateString()}
-                        </Text>
-                    </View>
-                    <View style={styles.taskActions}>
-                        {isSelectionMode ? (
-                            <Ionicons
-                                name={selectedTasks.includes(item.id) ? "checkbox" : "square-outline"}
-                                size={24}
-                                color={selectedTasks.includes(item.id) ? colors.primary : colors.textSecondary}
-                            />
-                        ) : (
-                            <TouchableOpacity onPress={() => showDeleteConfirmation(item.id)}>
-                                <Ionicons name="trash-outline" size={24} color={colors.danger} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-            </TouchableOpacity>
+                onDelete={() => showDeleteConfirmation(item.id)}
+            />
         );
     };
 
@@ -453,44 +399,6 @@ const styles = StyleSheet.create({
     list: {
         padding: 16,
         paddingBottom: 80, // Padding for FAB
-    },
-    taskItem: {
-        marginBottom: 16,
-        borderRadius: 12,
-        overflow: 'hidden',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    statusHeader: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-    },
-    statusHeaderText: {
-        color: 'white',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    taskContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-    },
-    taskInfo: {
-        flex: 1,
-    },
-    taskTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 4,
-    },
-    taskDate: {
-        fontSize: 14,
-    },
-    taskActions: {
-        marginLeft: 16,
     },
     emptyState: {
         alignItems: 'center',
