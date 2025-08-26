@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     StyleSheet,
     SafeAreaView,
-    Modal,
     Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,6 +14,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Task, TaskStatus } from '../types';
 import { useTheme } from '../components/ThemeContext';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import StatusEditModal from '../components/StatusEditModal';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -72,12 +73,6 @@ export default function HomeScreen() {
         }
     };
 
-    // Cancel single deletion
-    const cancelSingleDelete = (): void => {
-        setSingleDeleteModalVisible(false);
-        setTaskToDelete(null);
-    };
-
     // Show delete confirmation modal for multiple tasks
     const showMultiDeleteConfirmation = (): void => {
         if (selectedTasks.length > 0) {
@@ -99,11 +94,6 @@ export default function HomeScreen() {
             Alert.alert('Error', 'Failed to delete tasks');
             setMultiDeleteModalVisible(false);
         }
-    };
-
-    // Cancel multiple deletion
-    const cancelMultiDelete = (): void => {
-        setMultiDeleteModalVisible(false);
     };
 
     // Show edit status modal
@@ -129,11 +119,6 @@ export default function HomeScreen() {
             Alert.alert('Error', 'Failed to update tasks status');
             setEditStatusModalVisible(false);
         }
-    };
-
-    // Cancel status edit
-    const cancelStatusEdit = (): void => {
-        setEditStatusModalVisible(false);
     };
 
     // Toggle task selection
@@ -389,115 +374,31 @@ export default function HomeScreen() {
             )}
 
             {/* Single Delete Confirmation Modal */}
-            <Modal
+            <DeleteConfirmationModal
                 visible={singleDeleteModalVisible}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={cancelSingleDelete}
-            >
-                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Delete Task</Text>
-                        <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-                            Are you sure you want to delete this task? This action cannot be undone.
-                        </Text>
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.inputBackground }]}
-                                onPress={cancelSingleDelete}
-                            >
-                                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.danger }]}
-                                onPress={handleDeleteTask}
-                            >
-                                <Text style={[styles.modalButtonText, { color: 'white' }]}>Delete</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+                onRequestClose={() => setSingleDeleteModalVisible(false)}
+                onConfirm={handleDeleteTask}
+                title="Delete Task"
+                message="Are you sure you want to delete this task? This action cannot be undone."
+            />
 
             {/* Multiple Delete Confirmation Modal */}
-            <Modal
+            <DeleteConfirmationModal
                 visible={multiDeleteModalVisible}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={cancelMultiDelete}
-            >
-                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Delete Tasks</Text>
-                        <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-                            Are you sure you want to delete {selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'}? This action cannot be undone.
-                        </Text>
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.inputBackground }]}
-                                onPress={cancelMultiDelete}
-                            >
-                                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.danger }]}
-                                onPress={handleMultiDelete}
-                            >
-                                <Text style={[styles.modalButtonText, { color: 'white' }]}>Delete</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+                onRequestClose={() => setMultiDeleteModalVisible(false)}
+                onConfirm={handleMultiDelete}
+                title="Delete Tasks"
+                message={`Are you sure you want to delete ${selectedTasks.length} ${selectedTasks.length === 1 ? 'task' : 'tasks'}? This action cannot be undone.`}
+            />
 
             {/* Edit Status Modal */}
-            <Modal
+            <StatusEditModal
                 visible={editStatusModalVisible}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={cancelStatusEdit}
-            >
-                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Update Status</Text>
-                        <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-                            Set new status for {selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'}:
-                        </Text>
-
-                        <View style={styles.statusOptions}>
-                            <TouchableOpacity
-                                style={[styles.statusOption, { backgroundColor: getStatusColor('in-progress') }]}
-                                onPress={() => handleMultiStatusUpdate('in-progress')}
-                            >
-                                <Text style={styles.statusOptionText}>In Progress</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.statusOption, { backgroundColor: getStatusColor('completed') }]}
-                                onPress={() => handleMultiStatusUpdate('completed')}
-                            >
-                                <Text style={styles.statusOptionText}>Completed</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.statusOption, { backgroundColor: getStatusColor('cancelled') }]}
-                                onPress={() => handleMultiStatusUpdate('cancelled')}
-                            >
-                                <Text style={styles.statusOptionText}>Cancelled</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.inputBackground }]}
-                                onPress={cancelStatusEdit}
-                            >
-                                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+                onRequestClose={() => setEditStatusModalVisible(false)}
+                onStatusChange={handleMultiStatusUpdate}
+                title="Update Status"
+                message={`Set new status for ${selectedTasks.length} ${selectedTasks.length === 1 ? 'task' : 'tasks'}:`}
+            />
         </SafeAreaView>
     );
 }
@@ -618,57 +519,5 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 3,
-    },
-    // Modal styles
-    modalOverlay: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 16,
-    },
-    modalContent: {
-        borderRadius: 12,
-        padding: 24,
-        width: '100%',
-        maxWidth: 400,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 8,
-    },
-    modalMessage: {
-        fontSize: 16,
-        marginBottom: 24,
-        lineHeight: 20,
-    },
-    statusOptions: {
-        marginBottom: 24,
-    },
-    statusOption: {
-        padding: 16,
-        borderRadius: 8,
-        marginBottom: 8,
-        alignItems: 'center',
-    },
-    statusOptionText: {
-        color: 'white',
-        fontWeight: '600',
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: 8,
-    },
-    modalButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 6,
-        minWidth: 80,
-        alignItems: 'center',
-    },
-    modalButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
     },
 });

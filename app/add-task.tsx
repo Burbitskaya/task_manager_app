@@ -15,12 +15,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Task } from '../types';
-import moment from 'moment';
 import { useTheme } from '../components/ThemeContext';
+import RNDateTimePicker from "@react-native-community/datetimepicker";
+import moment from "moment";
 
 export default function AddTaskScreen() {
     const router = useRouter();
-    const { colors } = useTheme();
+    const { colors, colorScheme} = useTheme();
     const [title, setTitle] = useState<string>('');
     const [description, setDescription] = useState<string>('');
     const [location, setLocation] = useState<string>('');
@@ -30,11 +31,6 @@ export default function AddTaskScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
     const [modalType, setModalType] = useState<'error' | 'success'>('error');
-
-    // Format date for display
-    const formatDateTime = (date: Date): string => {
-        return moment(date).format('MMMM D, YYYY, h:mm A');
-    };
 
     // Show date/time picker with specified mode
     const showDatePickerModal = (mode: 'date' | 'time') => {
@@ -212,24 +208,18 @@ export default function AddTaskScreen() {
                 </View>
 
                 {showDatePicker && (
-                    <DateTimePicker
+                    <RNDateTimePicker
                         value={executionDate}
                         mode={pickerMode}
                         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                         onChange={onDateChange}
                         minimumDate={new Date()}
-                        locale="en-US"
+                        themeVariant={colorScheme}
+                        style={colorScheme==="dark" ? styles.darkPicker : styles.lightPicker}
                     />
                 )}
 
                 <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        style={[styles.cancelButton, { backgroundColor: colors.danger }]}
-                        onPress={() => router.back()}
-                    >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-
                     <TouchableOpacity
                         style={[
                             styles.saveButton,
@@ -325,31 +315,27 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 16,
+        justifyContent: 'center',
         marginTop: 8,
-    },
-    cancelButton: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    cancelButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
     },
     saveButton: {
         flex: 1,
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
+        maxWidth: 200,
     },
     saveButtonText: {
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
+    },
+    // Стили для DateTimePicker
+    darkPicker: {
+        backgroundColor: '#121212',
+    },
+    lightPicker: {
+        backgroundColor: 'white',
     },
     // Modal styles
     modalOverlay: {
