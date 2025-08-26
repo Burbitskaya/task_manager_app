@@ -28,6 +28,7 @@ export default function HomeScreen() {
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [singleDeleteModalVisible, setSingleDeleteModalVisible] = useState(false);
     const [multiDeleteModalVisible, setMultiDeleteModalVisible] = useState(false);
+    const [editStatusModalVisible, setEditStatusModalVisible] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
     // Load tasks when screen comes into focus
@@ -103,6 +104,36 @@ export default function HomeScreen() {
     // Cancel multiple deletion
     const cancelMultiDelete = (): void => {
         setMultiDeleteModalVisible(false);
+    };
+
+    // Show edit status modal
+    const showEditStatusModal = (): void => {
+        if (selectedTasks.length > 0) {
+            setEditStatusModalVisible(true);
+        }
+    };
+
+    // Handle status update for multiple tasks
+    const handleMultiStatusUpdate = async (newStatus: TaskStatus): Promise<void> => {
+        if (selectedTasks.length === 0) return;
+
+        try {
+            const updatedTasks = tasks.map(task =>
+                selectedTasks.includes(task.id) ? { ...task, status: newStatus } : task
+            );
+            setTasks(updatedTasks);
+            await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
+            setEditStatusModalVisible(false);
+            cancelSelectionMode();
+        } catch (error) {
+            Alert.alert('Error', 'Failed to update tasks status');
+            setEditStatusModalVisible(false);
+        }
+    };
+
+    // Cancel status edit
+    const cancelStatusEdit = (): void => {
+        setEditStatusModalVisible(false);
     };
 
     // Toggle task selection
@@ -263,16 +294,30 @@ export default function HomeScreen() {
                     <Text style={styles.selectionHeaderText}>
                         {selectedTasks.length} {selectedTasks.length === 1 ? 'item' : 'items'} selected
                     </Text>
-                    <TouchableOpacity
-                        onPress={showMultiDeleteConfirmation}
-                        disabled={selectedTasks.length === 0}
-                    >
-                        <Ionicons
-                            name="trash"
-                            size={24}
-                            color={selectedTasks.length > 0 ? "white" : "rgba(255,255,255,0.5)"}
-                        />
-                    </TouchableOpacity>
+                    <View style={styles.selectionActions}>
+                        <TouchableOpacity
+                            onPress={showEditStatusModal}
+                            disabled={selectedTasks.length === 0}
+                            style={styles.selectionActionButton}
+                        >
+                            <Ionicons
+                                name="create-outline"
+                                size={24}
+                                color={selectedTasks.length > 0 ? "white" : "rgba(255,255,255,0.5)"}
+                            />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={showMultiDeleteConfirmation}
+                            disabled={selectedTasks.length === 0}
+                            style={styles.selectionActionButton}
+                        >
+                            <Ionicons
+                                name="trash"
+                                size={24}
+                                color={selectedTasks.length > 0 ? "white" : "rgba(255,255,255,0.5)"}
+                            />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             )}
 
@@ -404,6 +449,55 @@ export default function HomeScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* Edit Status Modal */}
+            <Modal
+                visible={editStatusModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={cancelStatusEdit}
+            >
+                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Update Status</Text>
+                        <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
+                            Set new status for {selectedTasks.length} {selectedTasks.length === 1 ? 'task' : 'tasks'}:
+                        </Text>
+
+                        <View style={styles.statusOptions}>
+                            <TouchableOpacity
+                                style={[styles.statusOption, { backgroundColor: getStatusColor('in-progress') }]}
+                                onPress={() => handleMultiStatusUpdate('in-progress')}
+                            >
+                                <Text style={styles.statusOptionText}>In Progress</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.statusOption, { backgroundColor: getStatusColor('completed') }]}
+                                onPress={() => handleMultiStatusUpdate('completed')}
+                            >
+                                <Text style={styles.statusOptionText}>Completed</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.statusOption, { backgroundColor: getStatusColor('cancelled') }]}
+                                onPress={() => handleMultiStatusUpdate('cancelled')}
+                            >
+                                <Text style={styles.statusOptionText}>Cancelled</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, { backgroundColor: colors.inputBackground }]}
+                                onPress={cancelStatusEdit}
+                            >
+                                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -422,6 +516,13 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
+    },
+    selectionActions: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    selectionActionButton: {
+        padding: 4,
     },
     sortContainer: {
         flexDirection: 'row',
@@ -540,6 +641,19 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 24,
         lineHeight: 20,
+    },
+    statusOptions: {
+        marginBottom: 24,
+    },
+    statusOption: {
+        padding: 16,
+        borderRadius: 8,
+        marginBottom: 8,
+        alignItems: 'center',
+    },
+    statusOptionText: {
+        color: 'white',
+        fontWeight: '600',
     },
     modalButtons: {
         flexDirection: 'row',
