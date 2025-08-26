@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
     View,
     Text,
@@ -9,18 +9,18 @@ import {
     KeyboardAvoidingView,
     Platform
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import {useRouter} from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { Task } from '../types';
-import { useTheme } from '../components/ThemeContext';
+import {Ionicons} from '@expo/vector-icons';
+import {Task} from '../types';
+import {useTheme} from '../components/ThemeContext';
 import moment from "moment";
 import NotificationModal from '../components/NotificationModal';
 
 export default function AddTaskScreen() {
     const router = useRouter();
-    const { colors, colorScheme} = useTheme();
+    const {colors, colorScheme} = useTheme();
     const [title, setTitle] = useState<string>('');
     const [description, setDescription] = useState<string>('');
     const [location, setLocation] = useState<string>('');
@@ -31,20 +31,19 @@ export default function AddTaskScreen() {
     const [modalMessage, setModalMessage] = useState('');
     const [modalType, setModalType] = useState<'error' | 'success'>('error');
 
-    // Show date/time picker with specified mode
     const showDatePickerModal = (mode: 'date' | 'time') => {
         setPickerMode(mode);
         setShowDatePicker(true);
     };
 
-    // Show custom modal
+
     const showModal = (message: string, type: 'error' | 'success') => {
         setModalMessage(message);
         setModalType(type);
         setModalVisible(true);
     };
 
-    // Validate form inputs
+
     const validateForm = (): boolean => {
         if (!title.trim()) {
             showModal('Please enter a task title', 'error');
@@ -65,7 +64,6 @@ export default function AddTaskScreen() {
         return true;
     };
 
-    // Save task to AsyncStorage
     const handleSaveTask = async (): Promise<void> => {
         if (!validateForm()) return;
 
@@ -97,7 +95,6 @@ export default function AddTaskScreen() {
         }
     };
 
-    // Handle date/time picker change
     const onDateChange = (event: any, selectedDate?: Date): void => {
         setShowDatePicker(false);
         if (selectedDate) {
@@ -119,12 +116,12 @@ export default function AddTaskScreen() {
 
     return (
         <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: colors.background }]}
+            style={[styles.container, {backgroundColor: colors.background}]}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.formGroup}>
-                    <Text style={[styles.label, { color: colors.text }]}>Task Title *</Text>
+                    <Text style={[styles.label, {color: colors.text}]}>Task Title *</Text>
                     <TextInput
                         style={[styles.input, {
                             backgroundColor: colors.inputBackground,
@@ -140,7 +137,7 @@ export default function AddTaskScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                    <Text style={[styles.label, { color: colors.text }]}>Description *</Text>
+                    <Text style={[styles.label, {color: colors.text}]}>Description *</Text>
                     <TextInput
                         style={[styles.input, styles.textArea, {
                             backgroundColor: colors.inputBackground,
@@ -159,7 +156,7 @@ export default function AddTaskScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                    <Text style={[styles.label, { color: colors.text }]}>Location *</Text>
+                    <Text style={[styles.label, {color: colors.text}]}>Location *</Text>
                     <TextInput
                         style={[styles.input, {
                             backgroundColor: colors.inputBackground,
@@ -175,7 +172,7 @@ export default function AddTaskScreen() {
                 </View>
 
                 <View style={styles.formGroup}>
-                    <Text style={[styles.label, { color: colors.text }]}>Execution Date & Time *</Text>
+                    <Text style={[styles.label, {color: colors.text}]}>Execution Date & Time *</Text>
 
                     <View style={styles.dateTimeContainer}>
                         <TouchableOpacity
@@ -185,8 +182,8 @@ export default function AddTaskScreen() {
                             }]}
                             onPress={() => showDatePickerModal('date')}
                         >
-                            <Ionicons name="calendar" size={20} color={colors.primary} />
-                            <Text style={[styles.dateTimeText, { color: colors.text }]}>
+                            <Ionicons name="calendar" size={20} color={colors.primary}/>
+                            <Text style={[styles.dateTimeText, {color: colors.text}]}>
                                 {moment(executionDate).format('MMMM D, YYYY')}
                             </Text>
                         </TouchableOpacity>
@@ -198,8 +195,8 @@ export default function AddTaskScreen() {
                             }]}
                             onPress={() => showDatePickerModal('time')}
                         >
-                            <Ionicons name="time" size={20} color={colors.primary} />
-                            <Text style={[styles.dateTimeText, { color: colors.text }]}>
+                            <Ionicons name="time" size={20} color={colors.primary}/>
+                            <Text style={[styles.dateTimeText, {color: colors.text}]}>
                                 {moment(executionDate).format('h:mm A')}
                             </Text>
                         </TouchableOpacity>
@@ -221,8 +218,8 @@ export default function AddTaskScreen() {
                     <TouchableOpacity
                         style={[
                             styles.saveButton,
-                            { backgroundColor: colors.primary },
-                            (!title || !description || !location) && { backgroundColor: colors.textSecondary }
+                            {backgroundColor: colors.primary},
+                            (!title || !description || !location) && {backgroundColor: colors.textSecondary}
                         ]}
                         onPress={handleSaveTask}
                         disabled={!title || !description || !location}
@@ -232,7 +229,7 @@ export default function AddTaskScreen() {
                 </View>
             </ScrollView>
 
-            {/* Notification Modal */}
+
             <NotificationModal
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(false)}

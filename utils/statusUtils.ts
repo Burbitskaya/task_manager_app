@@ -1,5 +1,4 @@
 import { TaskStatus } from '../types';
-import { useTheme } from '../components/ThemeContext';
 
 export const getStatusColor = (status: TaskStatus, colors: any): string => {
     switch (status) {

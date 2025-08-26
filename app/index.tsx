@@ -5,8 +5,7 @@ import {
     FlatList,
     TouchableOpacity,
     StyleSheet,
-    SafeAreaView,
-    Alert
+    SafeAreaView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,6 +16,7 @@ import { useTheme } from '../components/ThemeContext';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import StatusEditModal from '../components/StatusEditModal';
 import TaskCard from '../components/TaskCard';
+import NotificationModal from '../components/NotificationModal';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -31,7 +31,17 @@ export default function HomeScreen() {
     const [singleDeleteModalVisible, setSingleDeleteModalVisible] = useState(false);
     const [multiDeleteModalVisible, setMultiDeleteModalVisible] = useState(false);
     const [editStatusModalVisible, setEditStatusModalVisible] = useState(false);
+    const [notificationModalVisible, setNotificationModalVisible] = useState(false);
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationType, setNotificationType] = useState<'error' | 'success'>('error');
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+
+
+    const showNotification = (message: string, type: 'error' | 'success') => {
+        setNotificationMessage(message);
+        setNotificationType(type);
+        setNotificationModalVisible(true);
+    };
 
     // Load tasks when screen comes into focus
     useFocusEffect(
@@ -40,7 +50,7 @@ export default function HomeScreen() {
         }, [])
     );
 
-    // Load tasks from AsyncStorage
+
     const loadTasks = async (): Promise<void> => {
         try {
             const storedTasks = await AsyncStorage.getItem('tasks');
@@ -48,17 +58,17 @@ export default function HomeScreen() {
                 setTasks(JSON.parse(storedTasks));
             }
         } catch (error) {
-            Alert.alert('Error', 'Failed to load tasks');
+            showNotification('Failed to load tasks', 'error');
         }
     };
 
-    // Show delete confirmation modal for single task
+
     const showDeleteConfirmation = (id: string): void => {
         setTaskToDelete(id);
         setSingleDeleteModalVisible(true);
     };
 
-    // Handle single task deletion
+
     const handleDeleteTask = async (): Promise<void> => {
         if (!taskToDelete) return;
 
@@ -68,20 +78,21 @@ export default function HomeScreen() {
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setSingleDeleteModalVisible(false);
             setTaskToDelete(null);
+            showNotification('Task deleted successfully', 'success');
         } catch (error) {
-            Alert.alert('Error', 'Failed to delete task');
+            showNotification('Failed to delete task', 'error');
             setSingleDeleteModalVisible(false);
         }
     };
 
-    // Show delete confirmation modal for multiple tasks
+
     const showMultiDeleteConfirmation = (): void => {
         if (selectedTasks.length > 0) {
             setMultiDeleteModalVisible(true);
         }
     };
 
-    // Handle multiple task deletion
+
     const handleMultiDelete = async (): Promise<void> => {
         if (selectedTasks.length === 0) return;
 
@@ -91,20 +102,21 @@ export default function HomeScreen() {
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setMultiDeleteModalVisible(false);
             cancelSelectionMode();
+            showNotification('Tasks deleted successfully', 'success');
         } catch (error) {
-            Alert.alert('Error', 'Failed to delete tasks');
+            showNotification('Failed to delete tasks', 'error');
             setMultiDeleteModalVisible(false);
         }
     };
 
-    // Show edit status modal
+
     const showEditStatusModal = (): void => {
         if (selectedTasks.length > 0) {
             setEditStatusModalVisible(true);
         }
     };
 
-    // Handle status update for multiple tasks
+
     const handleMultiStatusUpdate = async (newStatus: TaskStatus): Promise<void> => {
         if (selectedTasks.length === 0) return;
 
@@ -116,13 +128,14 @@ export default function HomeScreen() {
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setEditStatusModalVisible(false);
             cancelSelectionMode();
+            showNotification('Tasks status updated successfully', 'success');
         } catch (error) {
-            Alert.alert('Error', 'Failed to update tasks status');
+            showNotification('Failed to update tasks status', 'error');
             setEditStatusModalVisible(false);
         }
     };
 
-    // Toggle task selection
+
     const toggleTaskSelection = (id: string): void => {
         setSelectedTasks(prev => {
             if (prev.includes(id)) {
@@ -133,19 +146,19 @@ export default function HomeScreen() {
         });
     };
 
-    // Enable selection mode
+
     const enableSelectionMode = (id: string): void => {
         setIsSelectionMode(true);
         setSelectedTasks([id]);
     };
 
-    // Cancel selection mode
+
     const cancelSelectionMode = (): void => {
         setIsSelectionMode(false);
         setSelectedTasks([]);
     };
 
-    // Handle sort configuration change
+
     const handleSort = (field: 'date' | 'status') => {
         setSortConfig(prev => {
             // If clicking the same field, toggle direction
@@ -163,7 +176,7 @@ export default function HomeScreen() {
         });
     };
 
-    // Sort tasks based on current sort configuration
+
     const sortTasks = (tasksToSort: Task[]): Task[] => {
         const sortedTasks = [...tasksToSort];
 
@@ -185,14 +198,14 @@ export default function HomeScreen() {
         return sortedTasks;
     };
 
-    // Get icon for sort button
+
     const getSortIcon = (field: 'date' | 'status') => {
         if (sortConfig.field !== field) return 'swap-vertical';
 
         return sortConfig.direction === 'asc' ? 'arrow-up' : 'arrow-down';
     };
 
-    // Render individual task item
+
     const renderTaskItem = ({ item }: { item: Task }) => {
         const isSelected = selectedTasks.includes(item.id);
 
@@ -309,7 +322,7 @@ export default function HomeScreen() {
                 }
             />
 
-            {/* Floating action button - only show when not in selection mode */}
+            {/* Fab - only show when not in selection mode */}
             {!isSelectionMode && (
                 <TouchableOpacity
                     style={[styles.fab, { backgroundColor: colors.primary }]}
@@ -319,7 +332,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             )}
 
-            {/* Single Delete Confirmation Modal */}
+
             <DeleteConfirmationModal
                 visible={singleDeleteModalVisible}
                 onRequestClose={() => setSingleDeleteModalVisible(false)}
@@ -328,7 +341,7 @@ export default function HomeScreen() {
                 message="Are you sure you want to delete this task? This action cannot be undone."
             />
 
-            {/* Multiple Delete Confirmation Modal */}
+
             <DeleteConfirmationModal
                 visible={multiDeleteModalVisible}
                 onRequestClose={() => setMultiDeleteModalVisible(false)}
@@ -337,13 +350,22 @@ export default function HomeScreen() {
                 message={`Are you sure you want to delete ${selectedTasks.length} ${selectedTasks.length === 1 ? 'task' : 'tasks'}? This action cannot be undone.`}
             />
 
-            {/* Edit Status Modal */}
+
             <StatusEditModal
                 visible={editStatusModalVisible}
                 onRequestClose={() => setEditStatusModalVisible(false)}
                 onStatusChange={handleMultiStatusUpdate}
                 title="Update Status"
                 message={`Set new status for ${selectedTasks.length} ${selectedTasks.length === 1 ? 'task' : 'tasks'}:`}
+            />
+
+
+            <NotificationModal
+                visible={notificationModalVisible}
+                onRequestClose={() => setNotificationModalVisible(false)}
+                type={notificationType}
+                title={notificationType === 'success' ? 'Success' : 'Error'}
+                message={notificationMessage}
             />
         </SafeAreaView>
     );

@@ -1,14 +1,13 @@
-import { Stack } from 'expo-router';
-import { ThemeProvider, useTheme } from '../components/ThemeContext';
-import { TouchableOpacity, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {Stack} from 'expo-router';
+import {ThemeProvider, useTheme} from '../components/ThemeContext';
+import {TouchableOpacity} from 'react-native';
+import {Ionicons} from '@expo/vector-icons';
 
-// Theme switcher component for the header
 function ThemeSwitcher() {
-    const { colorScheme, toggleTheme } = useTheme();
+    const {colorScheme, toggleTheme} = useTheme();
 
     return (
-        <TouchableOpacity onPress={toggleTheme} style={{ marginRight: 16 }}>
+        <TouchableOpacity onPress={toggleTheme} style={{marginRight: 16}}>
             <Ionicons
                 name={colorScheme === 'light' ? 'moon' : 'sunny'}
                 size={24}
@@ -19,7 +18,7 @@ function ThemeSwitcher() {
 }
 
 function RootLayoutContent() {
-    const { colors } = useTheme();
+    const {colors} = useTheme();
 
     return (
         <Stack
@@ -37,7 +36,7 @@ function RootLayoutContent() {
                 options={{
                     title: 'Task Manager',
                     headerBackTitle: 'Back',
-                    headerRight: () => <ThemeSwitcher />,
+                    headerRight: () => <ThemeSwitcher/>,
                 }}
             />
             <Stack.Screen
@@ -45,14 +44,14 @@ function RootLayoutContent() {
                 options={{
                     title: 'Add Task',
                     presentation: 'modal',
-                    headerRight: () => <ThemeSwitcher />,
+                    headerRight: () => <ThemeSwitcher/>,
                 }}
             />
             <Stack.Screen
                 name="task/[id]"
                 options={{
                     title: 'Task Details',
-                    headerRight: () => <ThemeSwitcher />,
+                    headerRight: () => <ThemeSwitcher/>,
                 }}
             />
         </Stack>
@@ -62,7 +61,7 @@ function RootLayoutContent() {
 export default function RootLayout() {
     return (
         <ThemeProvider>
-            <RootLayoutContent />
+            <RootLayoutContent/>
         </ThemeProvider>
     );
 }

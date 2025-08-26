@@ -1,20 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import React, {useEffect, useState} from 'react';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+import {useLocalSearchParams, useNavigation, useRouter} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { Task, TaskStatus } from '../../types';
-import { useTheme } from '../../components/ThemeContext';
+import {Ionicons} from '@expo/vector-icons';
+import {Task, TaskStatus} from '../../types';
+import {useTheme} from '../../components/ThemeContext';
+import {getStatusColor, getStatusText} from '../../utils/statusUtils';
+import DeleteConfirmationModal from '../../components/DeleteConfirmationModal';
+import NotificationModal from '../../components/NotificationModal';
+import StatusEditModal from '../../components/StatusEditModal';
 
 const TaskDetailScreen = () => {
-    const { id } = useLocalSearchParams();
+    const {id} = useLocalSearchParams();
     const navigation = useNavigation();
     const router = useRouter();
-    const { colors } = useTheme();
+    const {colors} = useTheme();
     const [task, setTask] = useState<Task | null>(null);
-    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const [showStatusModal, setShowStatusModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [notificationModalVisible, setNotificationModalVisible] = useState(false);
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationType, setNotificationType] = useState<'error' | 'success'>('error');
 
+    // Load task when component mounts or id changes
     useEffect(() => {
         if (id) {
             loadTask();
@@ -23,9 +31,16 @@ const TaskDetailScreen = () => {
 
     useEffect(() => {
         if (task) {
-            navigation.setOptions({ title: task.title });
+            navigation.setOptions({title: task.title});
         }
     }, [task, navigation]);
+
+    const showNotification = (message: string, type: 'error' | 'success') => {
+        setNotificationMessage(message);
+        setNotificationType(type);
+        setNotificationModalVisible(true);
+    };
+
 
     const loadTask = async (): Promise<void> => {
         try {
@@ -36,29 +51,10 @@ const TaskDetailScreen = () => {
                 setTask(foundTask || null);
             }
         } catch (error) {
-            Alert.alert('Error', 'Failed to load task');
+            showNotification('Failed to load task', 'error');
         }
     };
 
-    const getStatusColor = (status: TaskStatus): string => {
-        switch (status) {
-            case 'completed': return colors.success;
-            case 'in-progress': return colors.info;
-            case 'pending': return colors.warning;
-            case 'cancelled': return colors.danger;
-            default: return colors.info;
-        }
-    };
-
-    const getStatusText = (status: TaskStatus): string => {
-        switch (status) {
-            case 'completed': return 'Completed';
-            case 'in-progress': return 'In Progress';
-            case 'pending': return 'Pending';
-            case 'cancelled': return 'Cancelled';
-            default: return status;
-        }
-    };
 
     const updateStatus = async (newStatus: TaskStatus): Promise<void> => {
         if (!task) return;
@@ -67,14 +63,16 @@ const TaskDetailScreen = () => {
             const storedTasks = await AsyncStorage.getItem('tasks');
             const tasks: Task[] = storedTasks ? JSON.parse(storedTasks) : [];
             const updatedTasks = tasks.map(t =>
-                t.id === task.id ? { ...t, status: newStatus } : t
+                t.id === task.id ? {...t, status: newStatus} : t
             );
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
-            setTask({ ...task, status: newStatus });
+            setTask({...task, status: newStatus});
+            showNotification('Status updated successfully', 'success');
         } catch (error) {
-            Alert.alert('Error', 'Failed to update status');
+            showNotification('Failed to update status', 'error');
         }
     };
+
 
     const deleteTask = async (): Promise<void> => {
         if (!task) return;
@@ -85,45 +83,51 @@ const TaskDetailScreen = () => {
             const updatedTasks = tasks.filter(t => t.id !== task.id);
             await AsyncStorage.setItem('tasks', JSON.stringify(updatedTasks));
             setShowDeleteModal(false);
-            router.back(); // Вернуться на предыдущий экран после удаления
+            showNotification('Task deleted successfully', 'success');
+
+            // Navigate back after successful deletion
+            setTimeout(() => {
+                router.back();
+            }, 1500);
         } catch (error) {
-            Alert.alert('Error', 'Failed to delete task');
+            showNotification('Failed to delete task', 'error');
             setShowDeleteModal(false);
         }
     };
 
-    const showStatusOptions = (): void => {
-        setShowStatusDropdown(true);
-    };
 
     const handleStatusChange = (newStatus: TaskStatus): void => {
         updateStatus(newStatus);
-        setShowStatusDropdown(false);
+        setShowStatusModal(false);
     };
+
 
     const showDeleteConfirmation = (): void => {
         setShowDeleteModal(true);
     };
 
+
     const cancelDelete = (): void => {
         setShowDeleteModal(false);
     };
 
+
     if (!task) {
         return (
-            <View style={[styles.container, { backgroundColor: colors.background }]}>
-                <Text style={{ color: colors.text }}>Loading...</Text>
+            <View style={[styles.container, {backgroundColor: colors.background}]}>
+                <Text style={{color: colors.text}}>Loading...</Text>
             </View>
         );
     }
 
     return (
-        <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={[styles.card, { backgroundColor: colors.cardBackground, shadowColor: colors.shadow }]}>
+        <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
+            <View style={[styles.card, {backgroundColor: colors.cardBackground, shadowColor: colors.shadow}]}>
                 <View style={styles.header}>
+                    {/* Status button with edit icon */}
                     <TouchableOpacity
-                        style={[styles.statusButton, { backgroundColor: getStatusColor(task.status) }]}
-                        onPress={showStatusOptions}
+                        style={[styles.statusButton, {backgroundColor: getStatusColor(task.status, colors)}]}
+                        onPress={() => setShowStatusModal(true)}
                     >
                         <View style={styles.statusButtonContent}>
                             <Text style={styles.statusButtonText}>{getStatusText(task.status)}</Text>
@@ -136,106 +140,66 @@ const TaskDetailScreen = () => {
                         </View>
                     </TouchableOpacity>
 
-                    {/* Кнопка удаления */}
+                    {/* Delete button */}
                     <TouchableOpacity
-                        style={[styles.deleteButton]}
+                        style={styles.deleteButton}
                         onPress={showDeleteConfirmation}
                     >
-                        <Ionicons name="trash-outline" size={24} color={colors.danger} />
+                        <Ionicons name="trash-outline" size={24} color={colors.danger}/>
                     </TouchableOpacity>
                 </View>
 
-                {/* Модальное окно изменения статуса */}
-                <Modal
-                    visible={showStatusDropdown}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowStatusDropdown(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={[styles.dropdownContainer, { backgroundColor: colors.cardBackground }]}>
-                            <TouchableOpacity
-                                style={[styles.statusOption, { backgroundColor: getStatusColor('in-progress') }]}
-                                onPress={() => handleStatusChange('in-progress')}
-                            >
-                                <Text style={styles.statusOptionText}>In Progress</Text>
-                            </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={[styles.statusOption, { backgroundColor: getStatusColor('completed') }]}
-                                onPress={() => handleStatusChange('completed')}
-                            >
-                                <Text style={styles.statusOptionText}>Completed</Text>
-                            </TouchableOpacity>
+                <StatusEditModal
+                    visible={showStatusModal}
+                    onRequestClose={() => setShowStatusModal(false)}
+                    onStatusChange={handleStatusChange}
+                    title="Change Status"
+                    message="Select new status for this task:"
+                />
 
-                            <TouchableOpacity
-                                style={[styles.statusOption, { backgroundColor: getStatusColor('cancelled') }]}
-                                onPress={() => handleStatusChange('cancelled')}
-                            >
-                                <Text style={styles.statusOptionText}>Cancelled</Text>
-                            </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={[styles.cancelOption, { backgroundColor: colors.inputBackground }]}
-                                onPress={() => setShowStatusDropdown(false)}
-                            >
-                                <Text style={[styles.cancelOptionText, { color: colors.text }]}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* Модальное окно подтверждения удаления */}
-                <Modal
+                <DeleteConfirmationModal
                     visible={showDeleteModal}
-                    transparent={true}
-                    animationType="fade"
                     onRequestClose={cancelDelete}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>Delete Task</Text>
-                            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-                                Are you sure you want to delete this task? This action cannot be undone.
-                            </Text>
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    style={[styles.modalButton, { backgroundColor: colors.inputBackground }]}
-                                    onPress={cancelDelete}
-                                >
-                                    <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.modalButton, { backgroundColor: colors.danger }]}
-                                    onPress={deleteTask}
-                                >
-                                    <Text style={[styles.modalButtonText, { color: 'white' }]}>Delete</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
+                    onConfirm={deleteTask}
+                    title="Delete Task"
+                    message="Are you sure you want to delete this task? This action cannot be undone."
+                />
+
+
+                <NotificationModal
+                    visible={notificationModalVisible}
+                    onRequestClose={() => setNotificationModalVisible(false)}
+                    type={notificationType}
+                    title={notificationType === 'success' ? 'Success' : 'Error'}
+                    message={notificationMessage}
+                />
+
 
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Description</Text>
-                    <Text style={[styles.sectionContent, { color: colors.text }]}>{task.description}</Text>
+                    <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Description</Text>
+                    <Text style={[styles.sectionContent, {color: colors.text}]}>{task.description}</Text>
                 </View>
 
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Location</Text>
-                    <Text style={[styles.sectionContent, { color: colors.text }]}>{task.location}</Text>
-                </View>
 
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Execution Date & Time</Text>
-                    <Text style={[styles.sectionContent, { color: colors.text }]}>
+                    <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Location</Text>
+                    <Text style={[styles.sectionContent, {color: colors.text}]}>{task.location}</Text>
+                </View>
+
+
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Execution Date & Time</Text>
+                    <Text style={[styles.sectionContent, {color: colors.text}]}>
                         {new Date(task.executionDate).toLocaleString()}
                     </Text>
                 </View>
 
+
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Created At</Text>
-                    <Text style={[styles.sectionContent, { color: colors.text }]}>
+                    <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Created At</Text>
+                    <Text style={[styles.sectionContent, {color: colors.text}]}>
                         {new Date(task.createdAt).toLocaleString()}
                     </Text>
                 </View>
@@ -252,7 +216,7 @@ const styles = StyleSheet.create({
     card: {
         borderRadius: 16,
         padding: 24,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: {width: 0, height: 4},
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 4,
@@ -298,70 +262,6 @@ const styles = StyleSheet.create({
     sectionContent: {
         fontSize: 16,
         lineHeight: 24,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    dropdownContainer: {
-        borderRadius: 12,
-        padding: 16,
-        width: '80%',
-        maxWidth: 300,
-    },
-    statusOption: {
-        padding: 16,
-        borderRadius: 8,
-        marginBottom: 8,
-        alignItems: 'center',
-    },
-    statusOptionText: {
-        color: 'white',
-        fontWeight: '600',
-    },
-    cancelOption: {
-        padding: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    cancelOptionText: {
-        fontWeight: '600',
-    },
-    // Стили для модального окна удаления
-    modalContent: {
-        borderRadius: 12,
-        padding: 24,
-        width: '80%',
-        maxWidth: 400,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 8,
-    },
-    modalMessage: {
-        fontSize: 16,
-        marginBottom: 24,
-        lineHeight: 20,
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: 8,
-    },
-    modalButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 6,
-        minWidth: 80,
-        alignItems: 'center',
-    },
-    modalButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
     },
 });
 
