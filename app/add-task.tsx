@@ -7,8 +7,7 @@ import {
     StyleSheet,
     ScrollView,
     KeyboardAvoidingView,
-    Platform,
-    Modal
+    Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -16,8 +15,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Task } from '../types';
 import { useTheme } from '../components/ThemeContext';
-import RNDateTimePicker from "@react-native-community/datetimepicker";
 import moment from "moment";
+import NotificationModal from '../components/NotificationModal';
 
 export default function AddTaskScreen() {
     const router = useRouter();
@@ -208,14 +207,13 @@ export default function AddTaskScreen() {
                 </View>
 
                 {showDatePicker && (
-                    <RNDateTimePicker
+                    <DateTimePicker
                         value={executionDate}
                         mode={pickerMode}
                         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                         onChange={onDateChange}
                         minimumDate={new Date()}
                         themeVariant={colorScheme}
-                        style={colorScheme==="dark" ? styles.darkPicker : styles.lightPicker}
                     />
                 )}
 
@@ -234,36 +232,14 @@ export default function AddTaskScreen() {
                 </View>
             </ScrollView>
 
-            {/* Custom Modal */}
-            <Modal
+            {/* Notification Modal */}
+            <NotificationModal
                 visible={modalVisible}
-                transparent={true}
-                animationType="fade"
                 onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-                        <Ionicons
-                            name={modalType === 'success' ? 'checkmark-circle' : 'alert-circle'}
-                            size={48}
-                            color={modalType === 'success' ? colors.success : colors.danger}
-                            style={styles.modalIcon}
-                        />
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>
-                            {modalType === 'success' ? 'Success' : 'Error'}
-                        </Text>
-                        <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>
-                            {modalMessage}
-                        </Text>
-                        <TouchableOpacity
-                            style={[styles.modalButton, { backgroundColor: modalType === 'success' ? colors.success : colors.danger }]}
-                            onPress={() => setModalVisible(false)}
-                        >
-                            <Text style={styles.modalButtonText}>OK</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+                type={modalType}
+                title={modalType === 'success' ? 'Success' : 'Error'}
+                message={modalMessage}
+            />
         </KeyboardAvoidingView>
     );
 }
@@ -329,52 +305,5 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
-    },
-    // Стили для DateTimePicker
-    darkPicker: {
-        backgroundColor: '#121212',
-    },
-    lightPicker: {
-        backgroundColor: 'white',
-    },
-    // Modal styles
-    modalOverlay: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 16,
-    },
-    modalContent: {
-        borderRadius: 16,
-        padding: 24,
-        width: '100%',
-        maxWidth: 400,
-        alignItems: 'center',
-    },
-    modalIcon: {
-        marginBottom: 16,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 8,
-    },
-    modalMessage: {
-        fontSize: 16,
-        textAlign: 'center',
-        marginBottom: 24,
-        lineHeight: 22,
-    },
-    modalButton: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 8,
-        minWidth: 100,
-        alignItems: 'center',
-    },
-    modalButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+    }
 });
