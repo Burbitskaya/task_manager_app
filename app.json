@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "task_manager_app",
+    "name": "Task Manager",
     "slug": "task_manager_app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -35,34 +35,16 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      [
-        "@react-native-community/datetimepicker",
-        {
-          "android": {
-            "datePicker": {
-              "colorAccent": {
-                "light": "#FF5722"
-              },
-              "textColorPrimary": {
-                "light": "#FF5722"
-              }
-            },
-            "timePicker": {
-              "background": {
-                "light": "#FF5722",
-                "dark": "#383838"
-              },
-              "numbersBackgroundColor": {
-                "light": "#FF5722",
-                "dark": "#383838"
-              }
-            }
-          }
-        }
-      ]
+            "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d40dacde-042e-45e4-ab6b-5feb2f4a7cb6"
+      }
     }
   }
 }
